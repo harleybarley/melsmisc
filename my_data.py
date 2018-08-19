@@ -1,3 +1,5 @@
+from datetime import datetime
+
 print('smoketest')
 
 """
@@ -6,25 +8,11 @@ Eval class instance by key and add to dataline
 """
 class DataLine(object):
     def __init__(self):
-        self.key = ''
         self.label = ''
         self.year = ''
         self.month = ''
         self.total = ''
-        self.data = {}
         super(DataLine, self).__init__()
-
-
-class DataSet(DataLine):
-    def __init__(self):
-        self.ds_label = ''
-        self.key = ''
-        self.label = ''
-        self.year = ''
-        self.total = ''
-        self.data = {}
-        self.data_dict = {'label': self.ds_label, 'data': self.data}
-        self.data_line = DataLine()
 
 
 class OutputLine():
@@ -32,7 +20,13 @@ class OutputLine():
         self.label = ''
         self.year = ''
         self.mo_data = {}
-        self.data = {'year': self.year, 'mo_data': self.mo_data}
+        self.data = {'label': self.label, 'year': self.year, 'mo_data': self.mo_data}
+
+
+class DataSet(OutputLine):
+    def __init__(self):
+        self.key = ''
+        self.data_line = OutputLine()
 
 
 def create_data_obj(line):
@@ -40,15 +34,30 @@ def create_data_obj(line):
     sp_line = line.split(',')
     d.key = '{}{}'.format(sp_line[0], sp_line[1])
     d.label = sp_line[0]
-    d.year = sp_line[1]
+
+    try:
+        d.year = int(sp_line[1].replace(' ', ''))
+    except Exception:
+        raise ValueError('Year should be numeric.')
+
     d.month = sp_line[2]
     d.total = sp_line[3].replace('\n', '').replace(' ', '')
     return d
 
-class CollectedData(DataLine):
-    def __init__(self):
-        self.Dataline()
-        self.data = {}
+
+def build_year(label, year, local_dataset):
+    output = OutputLine()
+    for obj in local_dataset:
+        if obj.year != year:
+            continue
+        if obj.label == label:
+            output.label = label
+            if obj.year not in output.data:
+                output.data['label'] = obj.label
+                output.data['year'] = obj.year
+                output.mo_data[obj.month] = obj.total
+
+    return output
 
 
 local_dataset = []
@@ -57,11 +66,17 @@ with open('sample.txt', 'r') as f:
         d = create_data_obj(line)
         local_dataset.append(d)
 
-    copies = OutputLine()
-    for obj in local_dataset:
-        if obj.label == 'COPIES':
-            if obj.year not in copies.data:
-                copies.data['year'] = obj.year
-                copies.mo_data[obj.month] = obj.total
+    collected_list = []
+    year = datetime.now().year
+    year_ctr = 0
+    while year_ctr <= 5:
+        copies = build_year('COPIES', year, local_dataset)
+        collected_list.append(copies)
+        payment = build_year('PAYMENT', year, local_dataset)
+        collected_list.append(payment)
+        year_ctr += 1
+        year = year - 1
 
-    print(copies.data)
+    for item in collected_list:
+        if item.label:
+            print(item.label, item.data)
